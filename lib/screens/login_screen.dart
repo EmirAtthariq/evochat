@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final supabase = Supabase.instance.client;
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   void _login(BuildContext context) {
-    debugPrint('Tombol login ditekan, mencoba pindah ke /main');
-    context.go('/main');
+    context.go('/chat');
   }
 
   @override
