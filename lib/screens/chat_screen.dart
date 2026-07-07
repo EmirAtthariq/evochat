@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:simple_typing_indicator/simple_typing_indicator.dart';
 import 'package:evochat/widgets/app_bar.dart';
+import 'package:evochat/services/chat_service.dart';
 
 /// Model sederhana untuk satu pesan chat
 class ChatMessage {
-  final String text;
+  String text; // dibuat non-final biar bisa diupdate saat streaming
   final bool isUser;
   final DateTime time;
 
@@ -28,14 +29,18 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
 
-  bool _isLoading = false;
+  final _chatService = ChatService(baseUrl: 'http://192.168.56.1:3000');
+  String? _conversationId;
+
+  bool _isLoading = false; // true = nunggu token pertama (typing indicator)
+  bool _isStreaming = false; // true = lagi nerima token (input dikunci)
 
   @override
   void initState() {
     super.initState();
     _messages.add(
       ChatMessage(
-        text: 'Halo! Saya adalah asisten Dummy. Ada yang bisa saya bantu?',
+        text: 'Halo! Saya adalah asisten EvoChat. Ada yang bisa saya bantu?',
         isUser: false,
       ),
     );
@@ -62,34 +67,70 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _isLoading) return;
+    if (text.isEmpty || _isLoading || _isStreaming) return;
 
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
-      _isLoading = true;
+      _isLoading = true; // munculin typing indicator dulu
     });
     _controller.clear();
     _scrollToBottom();
 
-    // ============================================================
-    // TODO: Ganti bagian ini dengan pemanggilan API AI sungguhan.
-    // Untuk sekarang, hanya balasan dummy agar UI bisa dicoba
-    // tanpa API key / koneksi ke provider AI mana pun.
-    // ============================================================
-    final reply = await _getDummyReply(text);
+    // susun history buat dikirim (role user/assistant, tanpa pesan kosong)
+    final apiMessages = _messages
+        .map((m) => ApiMessage(
+              role: m.isUser ? 'user' : 'assistant',
+              content: m.text,
+            ))
+        .toList();
 
-    setState(() {
-      _messages.add(ChatMessage(text: reply, isUser: false));
-      _isLoading = false;
-    });
-    _scrollToBottom();
-  }
+    int? assistantIndex;
 
-  Future<String> _getDummyReply(String userMessage) async {
-    // Simulasi delay seperti sedang memanggil server
-    await Future.delayed(const Duration(milliseconds: 800));
-    return 'Ini adalah balasan contoh untuk: "$userMessage"\n\n'
-        '(Belum terhubung ke AI)';
+    final newConvId = await _chatService.sendMessage(
+      messages: apiMessages,
+      conversationId: _conversationId,
+      onFirstToken: (token) {
+        // token pertama datang -> matiin typing indicator, munculin bubble
+        setState(() {
+          _isLoading = false;
+          _isStreaming = true;
+          _messages.add(ChatMessage(text: token, isUser: false));
+          assistantIndex = _messages.length - 1;
+        });
+        _scrollToBottom();
+      },
+      onToken: (token) {
+        if (assistantIndex == null) return;
+        setState(() {
+          _messages[assistantIndex!].text += token;
+        });
+        _scrollToBottom();
+      },
+      onDone: () {
+        setState(() {
+          _isLoading = false;
+          _isStreaming = false;
+        });
+      },
+      onError: (err) {
+        setState(() {
+          _isLoading = false;
+          _isStreaming = false;
+          // kalau belum ada bubble assistant sama sekali, tampilin pesan error sebagai bubble
+          if (assistantIndex == null) {
+            _messages.add(ChatMessage(
+              text: 'Maaf, terjadi kesalahan: $err',
+              isUser: false,
+            ));
+          }
+        });
+        _scrollToBottom();
+      },
+    );
+
+    if (newConvId.isNotEmpty) {
+      setState(() => _conversationId = newConvId);
+    }
   }
 
   @override
@@ -97,7 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: EvoChatAppBar(
         title: 'EvoChat',
-        showBackButton: false, // ini home screen, gak butuh tombol back
+        showBackButton: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.support_agent),
@@ -130,7 +171,7 @@ class _ChatScreenState extends State<ChatScreen> {
             _ChatInputBar(
               controller: _controller,
               onSend: _sendMessage,
-              isLoading: _isLoading,
+              isLoading: _isLoading || _isStreaming,
             ),
           ],
         ),
@@ -238,6 +279,7 @@ class _ChatInputBar extends StatelessWidget {
               controller: controller,
               minLines: 1,
               maxLines: 4,
+              enabled: !isLoading,
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => onSend(),
               decoration: InputDecoration(
