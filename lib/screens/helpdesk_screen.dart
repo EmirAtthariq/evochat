@@ -138,12 +138,23 @@ class _HelpdeskScreenState extends State<HelpdeskScreen> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Text(
-                            contact.label,
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                contact.label,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                              ),
+                              if (contact.picName != null && contact.picName!.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  contact.picName!,
+                                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                ),
+                              ],
+                            ],
                           ),
-                        ),
-                        Icon(Icons.chevron_right, color: Colors.grey[400]),
+                        ),   Icon(Icons.chevron_right, color: Colors.grey[400]),
                       ],
                     ),
                   ),

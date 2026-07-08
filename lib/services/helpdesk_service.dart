@@ -5,11 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class HelpdeskContact {
   final String id;
   final String label;
+  final String? picName;
   final String whatsappNumber;
 
   HelpdeskContact({
     required this.id,
     required this.label,
+    this.picName,
     required this.whatsappNumber,
   });
 
@@ -17,6 +19,7 @@ class HelpdeskContact {
     return HelpdeskContact(
       id: json['id'],
       label: json['label'],
+      picName: json['pic_name'],
       whatsappNumber: json['whatsapp_number'],
     );
   }
