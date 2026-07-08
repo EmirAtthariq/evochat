@@ -138,7 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: EvoChatAppBar(
         title: 'EvoChat',
-        showBackButton: false,
+        showBackButton: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.support_agent),
