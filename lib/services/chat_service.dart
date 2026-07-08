@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ApiMessage {
   final String role; // 'user' atau 'assistant'
@@ -25,9 +26,18 @@ class ChatService {
     required void Function() onDone,
     required void Function(String error) onError,
   }) async {
+    // ambil token dari session Supabase yang lagi aktif
+    final session = Supabase.instance.client.auth.currentSession;
+
+    if (session == null) {
+      onError('Sesi login tidak ditemukan, silakan login ulang.');
+      return conversationId ?? '';
+    }
+
     final uri = Uri.parse('$baseUrl/api/chat');
     final request = http.Request('POST', uri);
     request.headers['Content-Type'] = 'application/json';
+    request.headers['Authorization'] = 'Bearer ${session.accessToken}';
     request.body = jsonEncode({
       'messages': messages.map((m) => m.toJson()).toList(),
       'conversationId': conversationId,
