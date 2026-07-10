@@ -9,11 +9,13 @@ class ChatMessage {
   String text; // dibuat non-final biar bisa diupdate saat streaming
   final bool isUser;
   final DateTime time;
+  final bool isWelcomeMessage; // pesan sapaan, gak ikut dikirim ke API
 
   ChatMessage({
     required this.text,
     required this.isUser,
     DateTime? time,
+    this.isWelcomeMessage = false,
   }) : time = time ?? DateTime.now();
 }
 
@@ -42,6 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ChatMessage(
         text: 'Halo! Saya adalah asisten EvoChat. Ada yang bisa saya bantu?',
         isUser: false,
+        isWelcomeMessage: true,
       ),
     );
   }
@@ -76,8 +79,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.clear();
     _scrollToBottom();
 
-    // susun history buat dikirim (role user/assistant, tanpa pesan kosong)
+    // susun history buat dikirim (role user/assistant, tanpa pesan sapaan/kosong)
     final apiMessages = _messages
+        .where((m) => !m.isWelcomeMessage)
         .map((m) => ApiMessage(
               role: m.isUser ? 'user' : 'assistant',
               content: m.text,
