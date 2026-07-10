@@ -14,11 +14,17 @@ class EvoChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AppBar(
-      title: Text(title),
-      centerTitle: true,
-      elevation: 0,
       automaticallyImplyLeading: showBackButton,
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.primary, 
+        ),
+      ),
       actions: actions,
     );
   }

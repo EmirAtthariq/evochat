@@ -22,6 +22,14 @@ class EvoChatApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         appBarTheme: AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+          fontSize: 25,
+          fontWeight: FontWeight.w600,
+          ),
         ),
         colorSchemeSeed: Colors.blue,
         useMaterial3: true,
