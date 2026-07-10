@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:simple_typing_indicator/simple_typing_indicator.dart';
 import 'package:evochat/widgets/app_bar.dart';
 import 'package:evochat/services/chat_service.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 /// Model sederhana untuk satu pesan chat
 class ChatMessage {
@@ -185,6 +186,7 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 /// Widget bubble chat
+
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
 
@@ -214,15 +216,32 @@ class _ChatBubble extends StatelessWidget {
             bottomRight: Radius.circular(isUser ? 4 : 16),
           ),
         ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            color: isUser
-                ? theme.colorScheme.onPrimary
-                : theme.colorScheme.onSurfaceVariant,
-            fontSize: 15,
-          ),
-        ),
+        child: isUser
+            ? Text(
+                message.text,
+                style: TextStyle(
+                  color: theme.colorScheme.onPrimary,
+                  fontSize: 15,
+                ),
+              )
+            : MarkdownBody(
+                data: message.text,
+                styleSheet: MarkdownStyleSheet(
+                  p: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 15,
+                  ),
+                  strong: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  listBullet: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
       ),
     );
   }
