@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:evochat/widgets/app_bar.dart';
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
@@ -18,8 +18,8 @@ class DashboardScreen extends StatelessWidget {
     final email = user?.email ?? 'Pengguna';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('EvoChat'),
+      appBar: EvoChatAppBar(
+        title: 'EvoChat',
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
