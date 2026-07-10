@@ -11,9 +11,70 @@ class ApiMessage {
   Map<String, dynamic> toJson() => {'role': role, 'content': content};
 }
 
+class ConversationSummary {
+  final String id;
+  final String title;
+  final DateTime createdAt;
+
+  ConversationSummary({
+    required this.id,
+    required this.title,
+    required this.createdAt,
+  });
+
+  factory ConversationSummary.fromJson(Map<String, dynamic> json) {
+    return ConversationSummary(
+      id: json['id'],
+      title: json['title'] ?? 'Percakapan',
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
+}
+
 class ChatService {
   final String baseUrl;
   ChatService({required this.baseUrl});
+
+  Future<List<ConversationSummary>> fetchConversations() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      throw Exception('Sesi login tidak ditemukan, silakan login ulang.');
+    }
+
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/conversations'),
+      headers: {'Authorization': 'Bearer ${session.accessToken}'},
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Gagal memuat riwayat percakapan');
+    }
+
+    final data = jsonDecode(res.body) as List;
+    return data.map((c) => ConversationSummary.fromJson(c)).toList();
+  }
+
+  Future<List<ApiMessage>> fetchConversationMessages(String conversationId) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      throw Exception('Sesi login tidak ditemukan, silakan login ulang.');
+    }
+
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/conversations/$conversationId/messages'),
+      headers: {'Authorization': 'Bearer ${session.accessToken}'},
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Gagal memuat isi percakapan');
+    }
+
+    final data = jsonDecode(res.body);
+    final messagesJson = data['messages'] as List;
+    return messagesJson
+        .map((m) => ApiMessage(role: m['role'], content: m['content']))
+        .toList();
+  }
 
   /// Kirim history pesan ke /api/chat dan consume streaming response.
   /// onToken dipanggil tiap potongan teks baru datang.

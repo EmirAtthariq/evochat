@@ -30,24 +30,19 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<ChatMessage> _messages = [];
+  List<ChatMessage> _messages = [];
 
   final _chatService = ChatService(baseUrl: 'http://192.168.56.1:3000');
   String? _conversationId;
 
   bool _isLoading = false; // true = nunggu token pertama (typing indicator)
   bool _isStreaming = false; // true = lagi nerima token (input dikunci)
+  bool _isLoadingHistory = false;
 
   @override
   void initState() {
     super.initState();
-    _messages.add(
-      ChatMessage(
-        text: 'Halo! Saya adalah asisten EvoChat. Ada yang bisa saya bantu?',
-        isUser: false,
-        isWelcomeMessage: true,
-      ),
-    );
+    _startNewChat();
   }
 
   @override
@@ -55,6 +50,19 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _startNewChat() {
+    setState(() {
+      _conversationId = null;
+      _messages = [
+        ChatMessage(
+          text: 'Halo! Saya adalah asisten EvoChat. Ada yang bisa saya bantu?',
+          isUser: false,
+          isWelcomeMessage: true,
+        ),
+      ];
+    });
   }
 
   void _scrollToBottom() {
@@ -67,6 +75,54 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     });
+  }
+
+  Future<void> _openHistory() async {
+    setState(() => _isLoadingHistory = true);
+
+    try {
+      final conversations = await _chatService.fetchConversations();
+      setState(() => _isLoadingHistory = false);
+
+      if (!context.mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => _HistorySheet(
+          conversations: conversations,
+          onSelect: (id) => _loadConversation(id),
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoadingHistory = false);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat riwayat: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadConversation(String conversationId) async {
+    Navigator.of(context).pop(); // tutup bottom sheet dulu
+
+    try {
+      final apiMessages = await _chatService.fetchConversationMessages(conversationId);
+      setState(() {
+        _conversationId = conversationId;
+        _messages = apiMessages
+            .map((m) => ChatMessage(text: m.content, isUser: m.role == 'user'))
+            .toList();
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat percakapan: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -144,8 +200,17 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: EvoChatAppBar(
         title: 'EvoChat',
         showBackButton: true,
-        
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Riwayat Percakapan',
+            onPressed: _isLoadingHistory ? null : _openHistory,
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_comment_outlined),
+            tooltip: 'Percakapan Baru',
+            onPressed: (_isLoading || _isStreaming) ? null : _startNewChat,
+          ),
           IconButton(
             icon: const Icon(Icons.support_agent),
             tooltip: 'Helpdesk',
@@ -186,8 +251,57 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-/// Widget bubble chat
+/// Bottom sheet daftar riwayat percakapan
+class _HistorySheet extends StatelessWidget {
+  final List<ConversationSummary> conversations;
+  final void Function(String id) onSelect;
 
+  const _HistorySheet({required this.conversations, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.3,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Riwayat Percakapan', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            ),
+            if (conversations.isEmpty)
+              const Expanded(
+                child: Center(child: Text('Belum ada riwayat percakapan.')),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  itemCount: conversations.length,
+                  itemBuilder: (context, index) {
+                    final convo = conversations[index];
+                    return ListTile(
+                      leading: const Icon(Icons.chat_bubble_outline),
+                      title: Text(convo.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(
+                        '${convo.createdAt.day}/${convo.createdAt.month}/${convo.createdAt.year}',
+                      ),
+                      onTap: () => onSelect(convo.id),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Widget bubble chat
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
 
