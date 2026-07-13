@@ -27,6 +27,21 @@ environment:
 # dependencies can be manually updated by changing the version numbers below to
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/images/LogoEvoChat.png
+  color_dark: "#1A1A1A"
+  image_dark: assets/images/LogoEvoChat.png
+
+  android_12:
+    image: assets/images/LogoEvoChat.png
+    icon_background_color: "#FFFFFF"
+    image_dark: assets/images/LogoEvoChat.png
+    icon_background_color_dark: "#1A1A1A"
+
+  android: true
+  ios: true
+
 dependencies:
   flutter:
     sdk: flutter
@@ -39,6 +54,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.1
   flutter_markdown: ^0.7.7+1
+
+  flutter_native_splash: ^2.4.8
 
 dev_dependencies:
   flutter_test:

@@ -1,19 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:evochat/app/router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:go_router/go_router.dart';
+
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await Supabase.initialize(
     url: 'https://grzphmudtrjopckhmqct.supabase.co',
     publishableKey: 'sb_publishable__Aaq0oqkfgltmEPiAKwrow_G0oNI37y',
   );
-  runApp(const EvoChatApp());
+  final session = Supabase.instance.client.auth.currentSession;
+  final initialLocation = session != null ? '/dashboard' : '/login';
+
+  runApp(EvoChatApp(initialLocation: initialLocation));
+  FlutterNativeSplash.remove();
 }
 
+final supabase = Supabase.instance.client;
+
 class EvoChatApp extends StatelessWidget {
-  const EvoChatApp({super.key});
+  final String initialLocation;
+  const EvoChatApp({super.key, required this.initialLocation});
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +46,7 @@ class EvoChatApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
       ),
-      routerConfig: router,
+      routerConfig: buildRouter(initialLocation),
     );
   }
 }
