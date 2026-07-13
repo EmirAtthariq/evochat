@@ -15,6 +15,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _profileService = ProfileService(baseUrl: 'http://192.168.56.1:3000');
   String? _nama;
   String _email = '';
+  bool _profileLoadFailed = false;
 
   @override
   void initState() {
@@ -23,16 +24,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadProfile();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _loadProfile({int attempt = 1}) async {
     try {
       final profile = await _profileService.fetchUserProfile();
       if (!mounted) return;
       setState(() {
         _nama = profile.nama;
         _email = profile.email;
+        _profileLoadFailed = false;
       });
-    } catch (_) {
-      // gagal load nama, biarin fallback ke email doang
+    } catch (e) {
+      // ignore: avoid_print
+      print('Gagal memuat profil (percobaan $attempt): $e');
+
+      if (attempt < 2) {
+        // retry otomatis sekali setelah jeda singkat
+        await Future.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+        return _loadProfile(attempt: attempt + 1);
+      }
+
+      if (!mounted) return;
+      setState(() => _profileLoadFailed = true);
     }
   }
 
@@ -103,6 +116,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   _email,
                   style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              ],
+              if (_profileLoadFailed) ...[
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: () {
+                    setState(() => _profileLoadFailed = false);
+                    _loadProfile();
+                  },
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh, size: 14, color: Colors.orange[700]),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Gagal memuat nama · Coba lagi',
+                        style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                      ),
+                    ],
+                  ),
                 ),
               ],
               const SizedBox(height: 40),

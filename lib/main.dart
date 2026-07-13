@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:evochat/app/router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:go_router/go_router.dart';
 
 
 Future<void> main() async {
