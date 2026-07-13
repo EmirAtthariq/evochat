@@ -34,7 +34,22 @@ class ConversationSummary {
 class ChatService {
   final String baseUrl;
   ChatService({required this.baseUrl});
+  //Delete conversation by ID
+  Future<void> deleteConversation(String conversationId) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      throw Exception('Sesi login tidak ditemukan, silakan login ulang.');
+    }
 
+    final res = await http.delete(
+      Uri.parse('$baseUrl/api/conversations/$conversationId'),
+      headers: {'Authorization': 'Bearer ${session.accessToken}'},
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Gagal menghapus percakapan');
+    }
+  }
   Future<List<ConversationSummary>> fetchConversations() async {
     final session = Supabase.instance.client.auth.currentSession;
     if (session == null) {

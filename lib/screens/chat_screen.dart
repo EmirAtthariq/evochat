@@ -92,6 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (context) => _HistorySheet(
           conversations: conversations,
           onSelect: (id) => _loadConversation(id),
+          chatService: _chatService,
         ),
       );
     } catch (e) {
@@ -252,11 +253,63 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 /// Bottom sheet daftar riwayat percakapan
-class _HistorySheet extends StatelessWidget {
+class _HistorySheet extends StatefulWidget {
   final List<ConversationSummary> conversations;
   final void Function(String id) onSelect;
+  final ChatService chatService;
 
-  const _HistorySheet({required this.conversations, required this.onSelect});
+  const _HistorySheet({
+    required this.conversations,
+    required this.onSelect,
+    required this.chatService,
+  });
+
+  @override
+  State<_HistorySheet> createState() => _HistorySheetState();
+}
+
+class _HistorySheetState extends State<_HistorySheet> {
+  late List<ConversationSummary> _conversations;
+
+  @override
+  void initState() {
+    super.initState();
+    _conversations = List.from(widget.conversations);
+  }
+
+  Future<bool> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Percakapan'),
+        content: const Text('Yakin mau hapus percakapan ini? Aksi ini tidak bisa dibatalkan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  Future<void> _handleDelete(ConversationSummary convo) async {
+    try {
+      await widget.chatService.deleteConversation(convo.id);
+      setState(() => _conversations.removeWhere((c) => c.id == convo.id));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -272,7 +325,16 @@ class _HistorySheet extends StatelessWidget {
               padding: EdgeInsets.all(16),
               child: Text('Riwayat Percakapan', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             ),
-            if (conversations.isEmpty)
+            // Teks petunjuk geser untuk hapus, muncul kalau ada percakapan
+            if (_conversations.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Geser ke kiri untuk menghapus',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ),
+            if (_conversations.isEmpty)
               const Expanded(
                 child: Center(child: Text('Belum ada riwayat percakapan.')),
               )
@@ -280,16 +342,28 @@ class _HistorySheet extends StatelessWidget {
               Expanded(
                 child: ListView.builder(
                   controller: scrollController,
-                  itemCount: conversations.length,
+                  itemCount: _conversations.length,
                   itemBuilder: (context, index) {
-                    final convo = conversations[index];
-                    return ListTile(
-                      leading: const Icon(Icons.chat_bubble_outline),
-                      title: Text(convo.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(
-                        '${convo.createdAt.day}/${convo.createdAt.month}/${convo.createdAt.year}',
+                    final convo = _conversations[index];
+                    return Dismissible(
+                      key: ValueKey(convo.id),
+                      direction: DismissDirection.endToStart,
+                      confirmDismiss: (_) => _confirmDelete(context),
+                      onDismissed: (_) => _handleDelete(convo),
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      onTap: () => onSelect(convo.id),
+                      child: ListTile(
+                        leading: const Icon(Icons.chat_bubble_outline),
+                        title: Text(convo.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                          '${convo.createdAt.day}/${convo.createdAt.month}/${convo.createdAt.year}',
+                        ),
+                        onTap: () => widget.onSelect(convo.id),
+                      ),
                     );
                   },
                 ),
