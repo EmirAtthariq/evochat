@@ -121,10 +121,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _loading ? null : () => context.go('/signup'),
-                  child: const Text('Belum punya akun? Daftar'),
-                ),
               ],
               
             ),
