@@ -2,8 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:evochat/widgets/app_bar.dart';
-class DashboardScreen extends StatelessWidget {
+import 'package:evochat/services/profile_service.dart';
+
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final _profileService = ProfileService(baseUrl: 'http://192.168.56.1:3000');
+  String? _nama;
+  String _email = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _email = Supabase.instance.client.auth.currentUser?.email ?? 'Pengguna';
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await _profileService.fetchUserProfile();
+      if (!mounted) return;
+      setState(() {
+        _nama = profile.nama;
+        _email = profile.email;
+      });
+    } catch (_) {
+      // gagal load nama, biarin fallback ke email doang
+    }
+  }
 
   Future<void> _logout(BuildContext context) async {
     await Supabase.instance.client.auth.signOut();
@@ -14,9 +45,6 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
-    final email = user?.email ?? 'Pengguna';
-
     return Scaffold(
       appBar: EvoChatAppBar(
         title: 'EvoChat',
@@ -42,11 +70,18 @@ class DashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                email,
+                _nama ?? _email,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
               ),
+              if (_nama != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  _email,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              ],
               const SizedBox(height: 40),
 
               _DashboardMenuCard(
