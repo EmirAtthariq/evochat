@@ -4,13 +4,15 @@ Aplikasi mobile Flutter untuk chatbot AI. Menyediakan chat dengan asisten AI ber
 
 ## Tech Stack
 
-- **Framework**: Flutter
+- **Framework**: Flutter (Dart SDK `^3.11.4`)
+- **Platform**: Android & iOS (folder `android/` dan `ios/` sudah di-generate, termasuk konfigurasi native splash screen)
 - **Routing**: `go_router`
 - **Auth & Session**: `supabase_flutter`
 - **HTTP Client**: `http`
 - **Markdown Rendering**: `flutter_markdown`
 - **Splash Screen**: `flutter_native_splash`
 - **URL Launcher**: `url_launcher` (untuk membuka WhatsApp)
+- **Indikator mengetik**: `simple_typing_indicator`
 
 ## Struktur Folder
 
@@ -18,7 +20,7 @@ Aplikasi mobile Flutter untuk chatbot AI. Menyediakan chat dengan asisten AI ber
 lib/
 ├── main.dart                    # Entry point, init Supabase, cek sesi awal
 ├── app/
-│   ├── auth_state.dart          # Konfigurasi state aplikasi
+│   ├── auth_state.dart          # ChangeNotifier untuk state login (belum dipakai di router/screen manapun)
 │   ├── router.dart              # Konfigurasi go_router
 ├── screens/
 │   ├── login_screen.dart        # Login page
@@ -43,20 +45,23 @@ flutter pub get
 
 ### 2. Konfigurasi Supabase
 
-Isi kredensial Supabase di `main.dart`:
+Isi kredensial Supabase di `main.dart` (memakai parameter `publishableKey`, bukan `anonKey`):
 
 ```dart
 await Supabase.initialize(
   url: 'https://xxx.supabase.co',
-  anonKey: 'sb_publishable_xxxxx', // publishable key, BUKAN secret key
+  publishableKey: 'sb_publishable_xxxxx', // publishable key, BUKAN secret key
 );
 ```
 
+> Saat ini kredensial di atas masih **hardcoded langsung di `main.dart`** (belum pakai `.env`/`--dart-define`), jadi kalau mau ganti project Supabase, edit langsung di file tersebut.
+
 ### 3. Konfigurasi base URL server
 
-Sesuaikan `baseUrl` di tiap service (`ChatService`, `HelpdeskService`, `ProfileService`) dengan alamat server backend:
+Base URL server backend saat ini **di-hardcode terpisah di tiap screen** (`ChatScreen`, `DashboardScreen`, `HelpdeskScreen`), bukan di satu tempat terpusat — jadi kalau server pindah alamat, harus diganti manual di ketiga file:
 
 ```dart
+// lib/screens/chat_screen.dart, dashboard_screen.dart, helpdesk_screen.dart
 final _chatService = ChatService(baseUrl: 'http://192.168.56.1:3000');
 ```
 
