@@ -16,7 +16,7 @@ Aplikasi mobile Flutter untuk chatbot AI. Menyediakan chat dengan asisten AI ber
 
 ## Struktur Folder
 
-```
+``` text
 lib/
 ├── main.dart                    # Entry point, init Supabase, cek sesi awal
 ├── app/
@@ -89,6 +89,7 @@ flutter run
 ## Fitur Utama
 
 ### Chat
+
 - Kirim pertanyaan ke chatbot, jawaban diterima secara streaming (real-time, kata per kata)
 - Riwayat percakapan tersimpan per user, bisa dibuka kembali lewat ikon riwayat
 - Swipe kiri pada riwayat untuk menghapus percakapan
@@ -96,10 +97,12 @@ flutter run
 - Jawaban AI dirender sebagai markdown (bold, list, dll)
 
 ### Helpdesk
+
 - Menampilkan daftar kontak WhatsApp sesuai domisili cabang user (di-assign manual di database, tabel `profiles`)
 - Tap kontak langsung membuka WhatsApp dengan nomor terkait
 
 ### Dashboard
+
 - Menampilkan nama & email user (dari tabel `profiles`)
 - Sidebar berisi info akun dan tombol logout
 - Menu ke Chat dan Helpdesk
@@ -119,7 +122,7 @@ class ChatMessage {
 ## Troubleshooting Umum
 
 | Gejala | Kemungkinan Penyebab |
-|---|---|
+| --- | --- |
 | Error 401 saat chat | Sesi login expired atau token tidak terkirim |
 | AI menjawab "tidak ada informasi" padahal ada di dokumen | Riwayat percakapan lama tercemar jawaban gagal sebelumnya — mulai percakapan baru |
 | Tidak bisa konek ke server | Periksa `baseUrl`, pastikan device/emulator satu jaringan dengan server |
