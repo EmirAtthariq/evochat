@@ -29,14 +29,14 @@ environment:
 # versions available, run `flutter pub outdated`.
 flutter_native_splash:
   color: "#FFFFFF"
-  image: assets/images/LogoEvoChat.png
+  image: assets/images/SplashLogoEvoChat.png
   color_dark: "#1A1A1A"
-  image_dark: assets/images/LogoEvoChat.png
+  image_dark: assets/images/SplashLogoEvoChat.png
 
   android_12:
-    image: assets/images/LogoEvoChat.png
+    image: assets/images/SplashLogoEvoChat.png
     icon_background_color: "#FFFFFF"
-    image_dark: assets/images/LogoEvoChat.png
+    image_dark: assets/images/SplashLogoEvoChat.png
     icon_background_color_dark: "#1A1A1A"
 
   android: true
@@ -78,7 +78,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
+  assets:
+    - assets/images/LogoEvoChat.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

@@ -63,12 +63,11 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'EvoChat',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                Image.asset(
+                  'assets/images/LogoEvoChat.png',
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 32),
                 TextField(
