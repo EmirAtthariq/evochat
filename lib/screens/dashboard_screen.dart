@@ -142,7 +142,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _DashboardMenuCard(
                 icon: Icons.chat_bubble_outline,
                 title: 'Chat',
-                subtitle: 'Tanya apa saja ke asisten AI kami',
+                subtitle: 'Butuh bantuan? Tanyakan saja ke asisten AI kami',
                 onTap: () => context.push('/chat'),
               ),
               const SizedBox(height: 16),
