@@ -115,7 +115,7 @@ class _HelpdeskScreenState extends State<HelpdeskScreen> {
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             itemCount: _contacts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final contact = _contacts[index];
               return Material(
@@ -131,7 +131,7 @@ class _HelpdeskScreenState extends State<HelpdeskScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
+                            color: Colors.green.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(Icons.chat, color: Colors.green),

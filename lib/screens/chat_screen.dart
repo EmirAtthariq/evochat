@@ -77,33 +77,34 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  Future<void> _openHistory() async {
-    setState(() => _isLoadingHistory = true);
+ Future<void> _openHistory() async {
+  setState(() => _isLoadingHistory = true);
 
-    try {
-      final conversations = await _chatService.fetchConversations();
-      setState(() => _isLoadingHistory = false);
+  try {
+    final conversations = await _chatService.fetchConversations();
 
-      if (!context.mounted) return;
+    if (!mounted) return; // cek mounted DULU, sebelum setState apapun
 
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => _HistorySheet(
-          conversations: conversations,
-          onSelect: (id) => _loadConversation(id),
-          chatService: _chatService,
-        ),
-      );
-    } catch (e) {
-      setState(() => _isLoadingHistory = false);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat riwayat: $e')),
-        );
-      }
-    }
+    setState(() => _isLoadingHistory = false);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _HistorySheet(
+        conversations: conversations,
+        onSelect: (id) => _loadConversation(id),
+        chatService: _chatService,
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return; // sama, cek dulu sebelum setState
+
+    setState(() => _isLoadingHistory = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Gagal memuat riwayat: $e')),
+    );
   }
+}
 
   Future<void> _loadConversation(String conversationId) async {
     Navigator.of(context).pop(); // tutup bottom sheet dulu
@@ -298,16 +299,23 @@ class _HistorySheetState extends State<_HistorySheet> {
     return confirmed ?? false;
   }
 
-  Future<void> _handleDelete(ConversationSummary convo) async {
+  void _handleDelete(ConversationSummary convo) {
+    // hapus dari UI SEKARANG JUGA, sinkron — ini yang wajib buat Dismissible
+    setState(() => _conversations.removeWhere((c) => c.id == convo.id));
+
+    // proses hapus ke server dijalanin terpisah, gak diawait di sini
+    _deleteFromServer(convo);
+  }
+
+  Future<void> _deleteFromServer(ConversationSummary convo) async {
     try {
       await widget.chatService.deleteConversation(convo.id);
-      setState(() => _conversations.removeWhere((c) => c.id == convo.id));
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menghapus: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menghapus: $e')),
+      );
+      setState(() => _conversations.add(convo)); // munculin lagi kalau gagal
     }
   }
 
