@@ -105,12 +105,14 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
-
   Future<void> _loadConversation(String conversationId) async {
     Navigator.of(context).pop(); // tutup bottom sheet dulu
 
     try {
       final apiMessages = await _chatService.fetchConversationMessages(conversationId);
+
+      if (!mounted) return; // cek dulu sebelum setState
+
       setState(() {
         _conversationId = conversationId;
         _messages = apiMessages
@@ -119,14 +121,13 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       _scrollToBottom();
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat percakapan: $e')),
-        );
-      }
+      if (!mounted) return; // sama, cek dulu sebelum pakai context
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat percakapan: $e')),
+      );
     }
   }
-
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isLoading || _isStreaming) return;
