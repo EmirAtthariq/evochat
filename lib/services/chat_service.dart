@@ -3,12 +3,23 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ApiMessage {
-  final String role; // 'user' atau 'assistant'
+  final String? id; // null kalau pesan baru yang belum tersimpan
+  final String role;
   final String content;
+  final String? feedback;
 
-  ApiMessage({required this.role, required this.content});
+  ApiMessage({this.id, required this.role, required this.content, this.feedback});
 
   Map<String, dynamic> toJson() => {'role': role, 'content': content};
+
+  factory ApiMessage.fromJson(Map<String, dynamic> json) {
+    return ApiMessage(
+      id: json['id'],
+      role: json['role'],
+      content: json['content'],
+      feedback: json['feedback'],
+    );
+  }
 }
 
 class ConversationSummary {
@@ -34,6 +45,7 @@ class ConversationSummary {
 class ChatService {
   final String baseUrl;
   ChatService({required this.baseUrl});
+
   //Delete conversation by ID
   Future<void> deleteConversation(String conversationId) async {
     final session = Supabase.instance.client.auth.currentSession;
@@ -50,6 +62,7 @@ class ChatService {
       throw Exception('Gagal menghapus percakapan');
     }
   }
+
   Future<List<ConversationSummary>> fetchConversations() async {
     final session = Supabase.instance.client.auth.currentSession;
     if (session == null) {
@@ -86,20 +99,44 @@ class ChatService {
 
     final data = jsonDecode(res.body);
     final messagesJson = data['messages'] as List;
-    return messagesJson
-        .map((m) => ApiMessage(role: m['role'], content: m['content']))
-        .toList();
+    return messagesJson.map((m) => ApiMessage.fromJson(m)).toList();
+  }
+
+  // Send feedback for a specific message
+  Future<void> sendFeedback(String messageId, String? feedback) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      throw Exception('Sesi login tidak ditemukan, silakan login ulang.');
+    }
+
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/messages/$messageId/feedback'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}',
+      },
+      body: jsonEncode({'feedback': feedback}),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Gagal mengirim feedback');
+    }
   }
 
   /// Kirim history pesan ke /api/chat dan consume streaming response.
+  /// onConversationId dipanggil SEGERA setelah header response diterima
+  /// (sebelum token pertama diproses), supaya caller sudah punya
+  /// conversationId yang benar sebelum onDone dipanggil — penting untuk
+  /// percakapan baru yang sebelumnya conversationId-nya masih null.
   /// onToken dipanggil tiap potongan teks baru datang.
   /// Return conversationId (baru atau yang sama, buat disimpan di state).
   Future<String> sendMessage({
     required List<ApiMessage> messages,
     String? conversationId,
+    void Function(String conversationId)? onConversationId,
     required void Function(String token) onFirstToken,
     required void Function(String token) onToken,
-    required void Function() onDone,
+    required Future<void> Function() onDone, // diubah dari void Function()
     required void Function(String error) onError,
   }) async {
     // ambil token dari session Supabase yang lagi aktif
@@ -131,6 +168,14 @@ class ChatService {
       final newConversationId =
           streamedResponse.headers['x-conversation-id'] ?? conversationId ?? '';
 
+      // Kasih tau caller conversationId SEKARANG, sebelum streaming token
+      // & sebelum onDone dipanggil. Ini yang bikin _conversationId di
+      // ChatScreen sudah terisi begitu onDone jalan, walau ini pesan
+      // pertama di percakapan baru.
+      if (newConversationId.isNotEmpty) {
+        onConversationId?.call(newConversationId);
+      }
+
       bool isFirst = true;
       await for (final chunk in streamedResponse.stream.transform(utf8.decoder)) {
         if (chunk.isEmpty) continue;
@@ -142,7 +187,7 @@ class ChatService {
         }
       }
 
-      onDone();
+      await onDone(); // sekarang di-await karena onDone bisa async
       return newConversationId;
     } catch (e) {
       onError('Gagal konek ke server: $e');

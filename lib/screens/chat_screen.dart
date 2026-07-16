@@ -7,16 +7,20 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 
 /// Model sederhana untuk satu pesan chat
 class ChatMessage {
-  String text; // dibuat non-final biar bisa diupdate saat streaming
+  String text;
   final bool isUser;
   final DateTime time;
-  final bool isWelcomeMessage; // pesan sapaan, gak ikut dikirim ke API
+  final bool isWelcomeMessage;
+  String? id; // ID dari server, null sampai stream selesai & di-fetch ulang
+  String? feedback; // 'up' | 'down' | null
 
   ChatMessage({
     required this.text,
     required this.isUser,
     DateTime? time,
     this.isWelcomeMessage = false,
+    this.id,
+    this.feedback,
   }) : time = time ?? DateTime.now();
 }
 
@@ -77,34 +81,35 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
- Future<void> _openHistory() async {
-  setState(() => _isLoadingHistory = true);
+  Future<void> _openHistory() async {
+    setState(() => _isLoadingHistory = true);
 
-  try {
-    final conversations = await _chatService.fetchConversations();
+    try {
+      final conversations = await _chatService.fetchConversations();
 
-    if (!mounted) return; // cek mounted DULU, sebelum setState apapun
+      if (!mounted) return; // cek mounted DULU, sebelum setState apapun
 
-    setState(() => _isLoadingHistory = false);
+      setState(() => _isLoadingHistory = false);
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _HistorySheet(
-        conversations: conversations,
-        onSelect: (id) => _loadConversation(id),
-        chatService: _chatService,
-      ),
-    );
-  } catch (e) {
-    if (!mounted) return; // sama, cek dulu sebelum setState
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => _HistorySheet(
+          conversations: conversations,
+          onSelect: (id) => _loadConversation(id),
+          chatService: _chatService,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return; // sama, cek dulu sebelum setState
 
-    setState(() => _isLoadingHistory = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Gagal memuat riwayat: $e')),
-    );
+      setState(() => _isLoadingHistory = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat riwayat: $e')),
+      );
+    }
   }
-}
+
   Future<void> _loadConversation(String conversationId) async {
     Navigator.of(context).pop(); // tutup bottom sheet dulu
 
@@ -116,7 +121,12 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _conversationId = conversationId;
         _messages = apiMessages
-            .map((m) => ChatMessage(text: m.content, isUser: m.role == 'user'))
+            .map((m) => ChatMessage(
+                  text: m.content,
+                  isUser: m.role == 'user',
+                  id: m.id,
+                  feedback: m.feedback,
+                ))
             .toList();
       });
       _scrollToBottom();
@@ -128,6 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
   }
+
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isLoading || _isStreaming) return;
@@ -150,9 +161,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
     int? assistantIndex;
 
-    final newConvId = await _chatService.sendMessage(
+    await _chatService.sendMessage(
       messages: apiMessages,
       conversationId: _conversationId,
+      onConversationId: (id) {
+        // Diterima segera setelah header response datang, SEBELUM token
+        // pertama diproses & SEBELUM onDone dipanggil. Ini yang bikin
+        // _conversationId sudah terisi begitu onDone jalan, walau ini
+        // pesan pertama di percakapan yang baru dibuat.
+        setState(() => _conversationId = id);
+      },
       onFirstToken: (token) {
         // token pertama datang -> matiin typing indicator, munculin bubble
         setState(() {
@@ -170,11 +188,31 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         _scrollToBottom();
       },
-      onDone: () {
+      onDone: () async {
         setState(() {
           _isLoading = false;
           _isStreaming = false;
         });
+
+        // fetch ulang buat dapetin ID pesan assistant yang baru disimpan server
+        // _conversationId sudah pasti terisi di sini (lihat onConversationId
+        // di atas), termasuk untuk pesan pertama di percakapan baru.
+        if (_conversationId != null && assistantIndex != null) {
+          try {
+            final serverMessages = await _chatService.fetchConversationMessages(_conversationId!);
+            if (!mounted) return;
+            if (serverMessages.isNotEmpty) {
+              final lastServerMsg = serverMessages.last;
+              if (lastServerMsg.role == 'assistant') {
+                setState(() {
+                  _messages[assistantIndex!].id = lastServerMsg.id;
+                });
+              }
+            }
+          } catch (_) {
+            // gagal ambil ID gak fatal, tombol feedback cuma gak akan aktif buat pesan ini
+          }
+        }
       },
       onError: (err) {
         setState(() {
@@ -191,9 +229,25 @@ class _ChatScreenState extends State<ChatScreen> {
         _scrollToBottom();
       },
     );
+  }
 
-    if (newConvId.isNotEmpty) {
-      setState(() => _conversationId = newConvId);
+  Future<void> _handleFeedback(int messageIndex, String feedback) async {
+    final message = _messages[messageIndex];
+    if (message.id == null) return; // belum ada ID, gak bisa kirim feedback
+
+    final newFeedback = message.feedback == feedback ? null : feedback; // toggle kalau tap ulang
+    final previousFeedback = message.feedback;
+
+    setState(() => message.feedback = newFeedback);
+
+    try {
+      await _chatService.sendFeedback(message.id!, newFeedback);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => message.feedback = previousFeedback); // rollback kalau gagal
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengirim feedback: $e')),
+      );
     }
   }
 
@@ -237,7 +291,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     return const _TypingIndicator();
                   }
                   final message = _messages[index];
-                  return _ChatBubble(message: message);
+                  return _ChatBubble(
+                    message: message,
+                    onFeedback: (feedback) => _handleFeedback(index, feedback),
+                  );
                 },
               ),
             ),
@@ -336,13 +393,13 @@ class _HistorySheetState extends State<_HistorySheet> {
             ),
             // Teks petunjuk geser untuk hapus, muncul kalau ada percakapan
             if (_conversations.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                'Geser ke kiri untuk menghapus',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'Geser ke kiri untuk menghapus',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
               ),
-            ),
             if (_conversations.isEmpty)
               const Expanded(
                 child: Center(child: Text('Belum ada riwayat percakapan.')),
@@ -387,8 +444,9 @@ class _HistorySheetState extends State<_HistorySheet> {
 /// Widget bubble chat
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
+  final void Function(String feedback)? onFeedback;
 
-  const _ChatBubble({required this.message});
+  const _ChatBubble({required this.message, this.onFeedback});
 
   @override
   Widget build(BuildContext context) {
@@ -397,49 +455,87 @@ class _ChatBubble extends StatelessWidget {
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isUser
-              ? theme.colorScheme.primary
-              : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 16),
-          ),
-        ),
-        child: isUser
-            ? Text(
-                message.text,
-                style: TextStyle(
-                  color: theme.colorScheme.onPrimary,
-                  fontSize: 15,
-                ),
-              )
-            : MarkdownBody(
-                data: message.text,
-                styleSheet: MarkdownStyleSheet(
-                  p: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 15,
-                  ),
-                  strong: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  listBullet: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 15,
-                  ),
-                ),
+      child: Column(
+        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isUser
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isUser ? 16 : 4),
+                bottomRight: Radius.circular(isUser ? 4 : 16),
               ),
+            ),
+            child: isUser
+                ? Text(
+                    message.text,
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimary,
+                      fontSize: 15,
+                    ),
+                  )
+                : MarkdownBody(
+                    data: message.text,
+                    styleSheet: MarkdownStyleSheet(
+                      p: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 15,
+                      ),
+                      strong: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      listBullet: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+          ),
+
+          // tombol feedback, cuma buat pesan assistant yang bukan sapaan & udah punya id
+          if (!isUser && !message.isWelcomeMessage && message.id != null && onFeedback != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      message.feedback == 'up' ? Icons.thumb_up : Icons.thumb_up_outlined,
+                      size: 16,
+                      color: message.feedback == 'up' ? Colors.green : Colors.grey,
+                    ),
+                    onPressed: () => onFeedback!('up'),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(6),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      message.feedback == 'down' ? Icons.thumb_down : Icons.thumb_down_outlined,
+                      size: 16,
+                      color: message.feedback == 'down' ? Colors.red : Colors.grey,
+                    ),
+                    onPressed: () => onFeedback!('down'),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(6),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
