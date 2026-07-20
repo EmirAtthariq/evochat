@@ -7,8 +7,15 @@ class ApiMessage {
   final String role;
   final String content;
   final String? feedback;
+  final DateTime? createdAt; // null kalau pesan baru yang belum tersimpan
 
-  ApiMessage({this.id, required this.role, required this.content, this.feedback});
+  ApiMessage({
+    this.id, 
+    required this.role, 
+    required this.content, 
+    this.feedback,
+    this.createdAt
+    });
 
   Map<String, dynamic> toJson() => {'role': role, 'content': content};
 
@@ -18,6 +25,7 @@ class ApiMessage {
       role: json['role'],
       content: json['content'],
       feedback: json['feedback'],
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']).toLocal() : null,
     );
   }
 }

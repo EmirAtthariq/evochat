@@ -11,8 +11,8 @@ class ChatMessage {
   final bool isUser;
   final DateTime time;
   final bool isWelcomeMessage;
-  String? id; // ID dari server, null sampai stream selesai & di-fetch ulang
-  String? feedback; // 'up' | 'down' | null
+  String? id;
+  String? feedback;
 
   ChatMessage({
     required this.text,
@@ -27,11 +27,12 @@ class ChatMessage {
 class ChatScreen extends StatefulWidget {
   final bool openHistoryOnStart;
   final String? initialConversationId;
+
   const ChatScreen({
     super.key,
     this.openHistoryOnStart = false,
     this.initialConversationId,
-    });
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -45,8 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final _chatService = ChatService(baseUrl: 'http://192.168.56.1:3000');
   String? _conversationId;
 
-  bool _isLoading = false; // true = nunggu token pertama (typing indicator)
-  bool _isStreaming = false; // true = lagi nerima token (input dikunci)
+  bool _isLoading = false;
+  bool _isStreaming = false;
   bool _isLoadingHistory = false;
 
   @override
@@ -57,8 +58,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (widget.initialConversationId != null) {
       _loadConversation(widget.initialConversationId!);
     } else if (widget.openHistoryOnStart) {
-      WidgetsBinding.instance.addPostFrameCallback((_) 
-      => _openHistory());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openHistory();
+      });
     }
   }
 
@@ -94,13 +96,45 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  /// Gabungin _messages jadi daftar campuran: separator tanggal + bubble.
+  /// Dihitung ulang tiap build, bukan disimpan sebagai state.
+  List<Object> _buildItemsWithSeparators() {
+    final items = <Object>[];
+    DateTime? lastDate;
+
+    for (final msg in _messages) {
+      final msgDate = DateTime(msg.time.year, msg.time.month, msg.time.day);
+      if (lastDate == null || msgDate != lastDate) {
+        items.add(msgDate); // DateTime = penanda separator
+        lastDate = msgDate;
+      }
+      items.add(msg);
+    }
+    return items;
+  }
+
+  String _formatDateSeparator(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (date == today) return 'Hari Ini';
+    if (date == yesterday) return 'Kemarin';
+
+    const bulan = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+    ];
+    return '${date.day} ${bulan[date.month - 1]} ${date.year}';
+  }
+
   Future<void> _openHistory() async {
     setState(() => _isLoadingHistory = true);
 
     try {
       final conversations = await _chatService.fetchConversations();
 
-      if (!mounted) return; // cek mounted DULU, sebelum setState apapun
+      if (!mounted) return;
 
       setState(() => _isLoadingHistory = false);
 
@@ -114,7 +148,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) return; // sama, cek dulu sebelum setState
+      if (!mounted) return;
 
       setState(() => _isLoadingHistory = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -124,15 +158,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _loadConversation(String conversationId, {bool closeSheet = false}) async {
-    if(closeSheet){
-      Navigator.of(context).pop(); 
+    if (closeSheet) {
+      Navigator.of(context).pop();
     }
-    // tutup bottom sheet dulu
 
     try {
       final apiMessages = await _chatService.fetchConversationMessages(conversationId);
 
-      if (!mounted) return; // cek dulu sebelum setState
+      if (!mounted) return;
 
       setState(() {
         _conversationId = conversationId;
@@ -142,12 +175,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   isUser: m.role == 'user',
                   id: m.id,
                   feedback: m.feedback,
+                  time: m.createdAt,
                 ))
             .toList();
       });
       _scrollToBottom();
     } catch (e) {
-      if (!mounted) return; // sama, cek dulu sebelum pakai context
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memuat percakapan: $e')),
@@ -161,12 +195,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       _messages.add(ChatMessage(text: text, isUser: true));
-      _isLoading = true; // munculin typing indicator dulu
+      _isLoading = true;
     });
     _controller.clear();
     _scrollToBottom();
 
-    // susun history buat dikirim (role user/assistant, tanpa pesan sapaan/kosong)
     final apiMessages = _messages
         .where((m) => !m.isWelcomeMessage)
         .map((m) => ApiMessage(
@@ -177,18 +210,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
     int? assistantIndex;
 
-    await _chatService.sendMessage(
+    final newConvId = await _chatService.sendMessage(
       messages: apiMessages,
       conversationId: _conversationId,
-      onConversationId: (id) {
-        // Diterima segera setelah header response datang, SEBELUM token
-        // pertama diproses & SEBELUM onDone dipanggil. Ini yang bikin
-        // _conversationId sudah terisi begitu onDone jalan, walau ini
-        // pesan pertama di percakapan yang baru dibuat.
-        setState(() => _conversationId = id);
-      },
       onFirstToken: (token) {
-        // token pertama datang -> matiin typing indicator, munculin bubble
         setState(() {
           _isLoading = false;
           _isStreaming = true;
@@ -210,9 +235,6 @@ class _ChatScreenState extends State<ChatScreen> {
           _isStreaming = false;
         });
 
-        // fetch ulang buat dapetin ID pesan assistant yang baru disimpan server
-        // _conversationId sudah pasti terisi di sini (lihat onConversationId
-        // di atas), termasuk untuk pesan pertama di percakapan baru.
         if (_conversationId != null && assistantIndex != null) {
           try {
             final serverMessages = await _chatService.fetchConversationMessages(_conversationId!);
@@ -226,7 +248,7 @@ class _ChatScreenState extends State<ChatScreen> {
               }
             }
           } catch (_) {
-            // gagal ambil ID gak fatal, tombol feedback cuma gak akan aktif buat pesan ini
+            // gagal ambil ID gak fatal
           }
         }
       },
@@ -234,7 +256,6 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           _isLoading = false;
           _isStreaming = false;
-          // kalau belum ada bubble assistant sama sekali, tampilin pesan error sebagai bubble
           if (assistantIndex == null) {
             _messages.add(ChatMessage(
               text: 'Maaf, terjadi kesalahan: $err',
@@ -245,13 +266,17 @@ class _ChatScreenState extends State<ChatScreen> {
         _scrollToBottom();
       },
     );
+
+    if (newConvId.isNotEmpty) {
+      setState(() => _conversationId = newConvId);
+    }
   }
 
   Future<void> _handleFeedback(int messageIndex, String feedback) async {
     final message = _messages[messageIndex];
-    if (message.id == null) return; // belum ada ID, gak bisa kirim feedback
+    if (message.id == null) return;
 
-    final newFeedback = message.feedback == feedback ? null : feedback; // toggle kalau tap ulang
+    final newFeedback = message.feedback == feedback ? null : feedback;
     final previousFeedback = message.feedback;
 
     setState(() => message.feedback = newFeedback);
@@ -260,7 +285,7 @@ class _ChatScreenState extends State<ChatScreen> {
       await _chatService.sendFeedback(message.id!, newFeedback);
     } catch (e) {
       if (!mounted) return;
-      setState(() => message.feedback = previousFeedback); // rollback kalau gagal
+      setState(() => message.feedback = previousFeedback);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal mengirim feedback: $e')),
       );
@@ -269,6 +294,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final items = _buildItemsWithSeparators();
+
     return Scaffold(
       appBar: EvoChatAppBar(
         title: 'EvoChat',
@@ -297,19 +324,25 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                itemCount: _messages.length + (_isLoading ? 1 : 0),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                itemCount: items.length + (_isLoading ? 1 : 0),
                 itemBuilder: (context, index) {
-                  if (index == _messages.length && _isLoading) {
+                  if (index == items.length && _isLoading) {
                     return const _TypingIndicator();
                   }
-                  final message = _messages[index];
+
+                  final item = items[index];
+
+                  if (item is DateTime) {
+                    return _DateSeparator(label: _formatDateSeparator(item));
+                  }
+
+                  final message = item as ChatMessage;
+                  final messageIndex = _messages.indexOf(message);
+
                   return _ChatBubble(
                     message: message,
-                    onFeedback: (feedback) => _handleFeedback(index, feedback),
+                    onFeedback: (feedback) => _handleFeedback(messageIndex, feedback),
                   );
                 },
               ),
@@ -321,6 +354,31 @@ class _ChatScreenState extends State<ChatScreen> {
               isLoading: _isLoading || _isStreaming,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Pemisah tanggal, mirip WhatsApp — pill kecil di tengah
+class _DateSeparator extends StatelessWidget {
+  final String label;
+
+  const _DateSeparator({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
         ),
       ),
     );
@@ -374,10 +432,7 @@ class _HistorySheetState extends State<_HistorySheet> {
   }
 
   void _handleDelete(ConversationSummary convo) {
-    // hapus dari UI SEKARANG JUGA, sinkron — ini yang wajib buat Dismissible
     setState(() => _conversations.removeWhere((c) => c.id == convo.id));
-
-    // proses hapus ke server dijalanin terpisah, gak diawait di sini
     _deleteFromServer(convo);
   }
 
@@ -389,7 +444,7 @@ class _HistorySheetState extends State<_HistorySheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal menghapus: $e')),
       );
-      setState(() => _conversations.add(convo)); // munculin lagi kalau gagal
+      setState(() => _conversations.add(convo));
     }
   }
 
@@ -407,7 +462,6 @@ class _HistorySheetState extends State<_HistorySheet> {
               padding: EdgeInsets.all(16),
               child: Text('Riwayat Percakapan', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             ),
-            // Teks petunjuk geser untuk hapus, muncul kalau ada percakapan
             if (_conversations.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -464,6 +518,12 @@ class _ChatBubble extends StatelessWidget {
 
   const _ChatBubble({required this.message, this.onFeedback});
 
+  String _formatTime(DateTime time) {
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
@@ -479,7 +539,7 @@ class _ChatBubble extends StatelessWidget {
               maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
             margin: const EdgeInsets.symmetric(vertical: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.fromLTRB(14, 10, 10, 8),
             decoration: BoxDecoration(
               color: isUser
                   ? theme.colorScheme.primary
@@ -491,35 +551,49 @@ class _ChatBubble extends StatelessWidget {
                 bottomRight: Radius.circular(isUser ? 4 : 16),
               ),
             ),
-            child: isUser
-                ? Text(
-                    message.text,
-                    style: TextStyle(
-                      color: theme.colorScheme.onPrimary,
-                      fontSize: 15,
-                    ),
-                  )
-                : MarkdownBody(
-                    data: message.text,
-                    styleSheet: MarkdownStyleSheet(
-                      p: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 15,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                isUser
+                    ? Text(
+                        message.text,
+                        style: TextStyle(
+                          color: theme.colorScheme.onPrimary,
+                          fontSize: 15,
+                        ),
+                      )
+                    : MarkdownBody(
+                        data: message.text,
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 15,
+                          ),
+                          strong: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          listBullet: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
-                      strong: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      listBullet: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 15,
-                      ),
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  _formatTime(message.time),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isUser
+                        ? theme.colorScheme.onPrimary.withOpacity(0.7)
+                        : Colors.grey[500],
                   ),
+                ),
+              ],
+            ),
           ),
 
-          // tombol feedback, cuma buat pesan assistant yang bukan sapaan & udah punya id
           if (!isUser && !message.isWelcomeMessage && message.id != null && onFeedback != null)
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 4),
@@ -619,10 +693,7 @@ class _ChatInputBar extends StatelessWidget {
                 hintText: 'Ketik pesan...',
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
