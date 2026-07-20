@@ -15,6 +15,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _profileService = ProfileService(baseUrl: 'http://192.168.56.1:3000');
   String? _nama;
   String _email = '';
+  String? _domisili; 
   bool _profileLoadFailed = false;
 
   @override
@@ -31,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         _nama = profile.nama;
         _email = profile.email;
+        _domisili = profile.domisili;
         _profileLoadFailed = false;
       });
     } catch (e) {
@@ -69,7 +71,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _nama ?? 'Pengguna',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                accountEmail: Text(_email),
+                accountEmail: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_email),
+                    if (_domisili != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, size: 14, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(
+                            _domisili!,
+                            style: TextStyle(fontSize: 12, color: Colors.white),
+                          ),
+                        ],
+                      )
+                    ]
+                  ]
+                ) ,
                 currentAccountPicture: CircleAvatar(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   child: Text(
