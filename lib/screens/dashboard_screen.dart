@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:evochat/widgets/app_bar.dart';
 import 'package:evochat/services/profile_service.dart';
+import 'package:evochat/services/chat_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -12,17 +13,35 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+    final _chatService = ChatService(baseUrl: 'http://192.168.56.1:3000'); 
   final _profileService = ProfileService(baseUrl: 'http://192.168.56.1:3000');
   String? _nama;
   String _email = '';
   String? _domisili; 
   bool _profileLoadFailed = false;
+  List<ConversationSummary> _recentConversations = [];
+  bool _loadingConversations = true;
 
   @override
   void initState() {
     super.initState();
     _email = Supabase.instance.client.auth.currentUser?.email ?? 'Pengguna';
     _loadProfile();
+    _loadRecentConversations();
+  }
+
+  Future<void> _loadRecentConversations() async{
+    try {
+      final all = await _chatService.fetchConversations();
+      if (!mounted) return;
+      setState((){
+        _recentConversations = all.take(5).toList();
+        _loadingConversations = false;
+      });
+    } catch(_){
+      if (!mounted) return;
+      setState(() => _loadingConversations = false);
+    }
   }
 
   Future<void> _loadProfile({int attempt = 1}) async {
@@ -100,6 +119,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Row(
+                  children: [
+                    Text(
+                      'Riwayat Percakapan',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_loadingConversations)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical:16) ,
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+              else if (_recentConversations.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Belum ada percakapan',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                )
+              else
+                ..._recentConversations.map((convo) => ListTile(
+                    dense:true,
+                    leading: const Icon(Icons.chat_bubble_outline, size: 20),
+                    title: Text(
+                      convo.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize:14)
+                    ),
+                    onTap: (){
+                      Navigator.of(context).pop(); 
+                      context.push('/chat', extra: {'conversationId': convo.id});// tutup drawer
+                    },
+                )),
               const Spacer(),
               const Divider(height: 1),
               ListTile(

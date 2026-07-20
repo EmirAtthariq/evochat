@@ -18,7 +18,15 @@ GoRouter buildRouter(String initialLocation){
       ),
       GoRoute(
         path: '/chat',
-        builder: (context, state) => const ChatScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final  openHistory = extra?['openHistory'] as bool? ?? false;
+          final conversationId = extra?['conversationId'] as String?;
+          return ChatScreen(
+            openHistoryOnStart: openHistory,
+            initialConversationId: conversationId,
+          );
+        }
       ),
       GoRoute(
         path: '/helpdesk',

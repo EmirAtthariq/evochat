@@ -25,7 +25,13 @@ class ChatMessage {
 }
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final bool openHistoryOnStart;
+  final String? initialConversationId;
+  const ChatScreen({
+    super.key,
+    this.openHistoryOnStart = false,
+    this.initialConversationId,
+    });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -47,6 +53,13 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _startNewChat();
+
+    if (widget.initialConversationId != null) {
+      _loadConversation(widget.initialConversationId!);
+    } else if (widget.openHistoryOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) 
+      => _openHistory());
+    }
   }
 
   @override
@@ -96,7 +109,7 @@ class _ChatScreenState extends State<ChatScreen> {
         isScrollControlled: true,
         builder: (context) => _HistorySheet(
           conversations: conversations,
-          onSelect: (id) => _loadConversation(id),
+          onSelect: (id) => _loadConversation(id, closeSheet: true),
           chatService: _chatService,
         ),
       );
@@ -110,8 +123,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _loadConversation(String conversationId) async {
-    Navigator.of(context).pop(); // tutup bottom sheet dulu
+  Future<void> _loadConversation(String conversationId, {bool closeSheet = false}) async {
+    if(closeSheet){
+      Navigator.of(context).pop(); 
+    }
+    // tutup bottom sheet dulu
 
     try {
       final apiMessages = await _chatService.fetchConversationMessages(conversationId);
