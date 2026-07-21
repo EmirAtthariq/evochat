@@ -30,20 +30,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadRecentConversations();
   }
 
-  Future<void> _loadRecentConversations() async{
-    try {
-      final all = await _chatService.fetchConversations();
-      if (!mounted) return;
-      setState((){
-        _recentConversations = all.take(5).toList();
-        _loadingConversations = false;
-      });
-    } catch(_){
-      if (!mounted) return;
-      setState(() => _loadingConversations = false);
-    }
+Future<void> _loadRecentConversations() async {
+  setState(() => _loadingConversations = true); 
+  try {
+    final all = await _chatService.fetchConversations();
+    if (!mounted) return;
+    setState(() {
+      _recentConversations = all.take(5).toList();
+      _loadingConversations = false;
+    });
+  } catch (_) {
+    if (!mounted) return;
+    setState(() => _loadingConversations = false);
   }
-
+}
   Future<void> _loadProfile({int attempt = 1}) async {
     try {
       final profile = await _profileService.fetchUserProfile();
