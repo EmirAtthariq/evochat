@@ -100,6 +100,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const EvoChatAppBar(title: 'EvoChat'),
+      onDrawerChanged: ( isOpened) {
+        if (isOpened && _recentConversations.isEmpty && !_loadingConversations) {
+          _loadRecentConversations();
+        }
+      },
       drawer: Drawer(
         child: SafeArea(
           child: Column(
