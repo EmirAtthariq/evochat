@@ -141,10 +141,10 @@ class ChatService {
   Future<String> sendMessage({
     required List<ApiMessage> messages,
     String? conversationId,
-    void Function(String conversationId)? onConversationId,
+   
     required void Function(String token) onFirstToken,
     required void Function(String token) onToken,
-    required Future<void> Function() onDone, // diubah dari void Function()
+    required Future<void> Function(String conversationId) onDone,
     required void Function(String error) onError,
   }) async {
     // ambil token dari session Supabase yang lagi aktif
@@ -176,13 +176,7 @@ class ChatService {
       final newConversationId =
           streamedResponse.headers['x-conversation-id'] ?? conversationId ?? '';
 
-      // Kasih tau caller conversationId SEKARANG, sebelum streaming token
-      // & sebelum onDone dipanggil. Ini yang bikin _conversationId di
-      // ChatScreen sudah terisi begitu onDone jalan, walau ini pesan
-      // pertama di percakapan baru.
-      if (newConversationId.isNotEmpty) {
-        onConversationId?.call(newConversationId);
-      }
+
 
       bool isFirst = true;
       await for (final chunk in streamedResponse.stream.transform(utf8.decoder)) {
@@ -195,7 +189,7 @@ class ChatService {
         }
       }
 
-      await onDone(); // sekarang di-await karena onDone bisa async
+      await onDone(newConversationId); // sekarang di-await karena onDone bisa async
       return newConversationId;
     } catch (e) {
       onError('Gagal konek ke server: $e');

@@ -232,15 +232,15 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         _scrollToBottom();
       },
-      onDone: () async {
+      onDone: (convId) async {
         setState(() {
           _isLoading = false;
           _isStreaming = false;
         });
 
-        if (_conversationId != null && assistantIndex != null) {
+        if (assistantIndex != null) {
           try {
-            final serverMessages = await _chatService.fetchConversationMessages(_conversationId!);
+            final serverMessages = await _chatService.fetchConversationMessages(convId);
             if (!mounted) return;
             if (serverMessages.isNotEmpty) {
               final lastServerMsg = serverMessages.last;
