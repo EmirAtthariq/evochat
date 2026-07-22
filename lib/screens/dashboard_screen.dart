@@ -134,7 +134,7 @@ Future<void> _loadRecentConversations() async {
                   ]
                 ) ,
                 currentAccountPicture: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 5),
                   child: Text(
                     (_nama ?? _email).isNotEmpty
                         ? (_nama ?? _email)[0].toUpperCase()

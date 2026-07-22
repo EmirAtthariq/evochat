@@ -145,6 +145,9 @@ class _ChatScreenState extends State<ChatScreen> {
           conversations: conversations,
           onSelect: (id) => _loadConversation(id, closeSheet: true),
           chatService: _chatService,
+          currentConversationId: _conversationId, // baru
+          onCurrentDeleted: _startNewChat, // baru
+          
         ),
       );
     } catch (e) {
@@ -390,11 +393,16 @@ class _HistorySheet extends StatefulWidget {
   final List<ConversationSummary> conversations;
   final void Function(String id) onSelect;
   final ChatService chatService;
+  final String? currentConversationId; // baru
+  final VoidCallback? onCurrentDeleted; // baru
 
   const _HistorySheet({
     required this.conversations,
     required this.onSelect,
     required this.chatService,
+    this.currentConversationId,
+    this.onCurrentDeleted,
+    
   });
 
   @override
@@ -433,6 +441,10 @@ class _HistorySheetState extends State<_HistorySheet> {
 
   void _handleDelete(ConversationSummary convo) {
     setState(() => _conversations.removeWhere((c) => c.id == convo.id));
+        // kalau yang dihapus ini adalah percakapan yang lagi aktif di ChatScreen
+    if (convo.id == widget.currentConversationId) {
+      widget.onCurrentDeleted?.call();
+    }
     _deleteFromServer(convo);
   }
 
@@ -586,7 +598,7 @@ class _ChatBubble extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     color: isUser
-                        ? theme.colorScheme.onPrimary.withOpacity(0.7)
+                        ? theme.colorScheme.onPrimary.withValues(alpha: 0.7)
                         : Colors.grey[500],
                   ),
                 ),
