@@ -109,41 +109,43 @@ Future<void> _loadRecentConversations() async {
         child: SafeArea(
           child: Column(
             children: [
-              UserAccountsDrawerHeader(
-                accountName: Text(
-                  _nama ?? 'Pengguna',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                accountEmail: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_email),
-                    if (_domisili != null) ...[
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on, size: 14, color: Colors.white),
-                          const SizedBox(width: 4),
-                          Text(
-                            _domisili!,
-                            style: TextStyle(fontSize: 12, color: Colors.white),
-                          ),
-                        ],
-                      )
-                    ]
-                  ]
-                ) ,
-                currentAccountPicture: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 5),
-                  child: Text(
-                    (_nama ?? _email).isNotEmpty
-                        ? (_nama ?? _email)[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(color: Colors.white, fontSize: 24),
-                  ),
-                ),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
+        color: Theme.of(context).colorScheme.primary,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _nama ?? 'Pengguna',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                color: Colors.white,
               ),
-              Padding(
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _email,
+              style: const TextStyle(fontSize: 14, color: Colors.white),
+            ),
+            if (_domisili != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 16, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Text(
+                    _domisili!,
+                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),              Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Row(
                   children: [
