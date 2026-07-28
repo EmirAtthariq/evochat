@@ -101,7 +101,7 @@ Future<void> _loadRecentConversations() async {
     return Scaffold(
       appBar: const EvoChatAppBar(title: 'EvoChat'),
       onDrawerChanged: ( isOpened) {
-        if (isOpened && _recentConversations.isEmpty && !_loadingConversations) {
+        if (isOpened) {
           _loadRecentConversations();
         }
       },
