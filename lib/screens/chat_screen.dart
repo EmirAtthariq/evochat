@@ -4,6 +4,7 @@ import 'package:simple_typing_indicator/simple_typing_indicator.dart';
 import 'package:evochat/widgets/app_bar.dart';
 import 'package:evochat/services/chat_service.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:evochat/config.dart';
 
 /// Model sederhana untuk satu pesan chat
 class ChatMessage {
@@ -43,7 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   List<ChatMessage> _messages = [];
 
-  final _chatService = ChatService(baseUrl: 'http://192.168.56.1:3000');
+  final _chatService = ChatService(baseUrl: baseUrl);
   String? _conversationId;
 
   bool _isLoading = false;

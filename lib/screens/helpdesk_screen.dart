@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:evochat/services/helpdesk_service.dart';
 import 'package:evochat/widgets/app_bar.dart';
+import 'package:evochat/config.dart';
 
 class HelpdeskScreen extends StatefulWidget {
   const HelpdeskScreen({super.key});
@@ -11,7 +12,7 @@ class HelpdeskScreen extends StatefulWidget {
 }
 
 class _HelpdeskScreenState extends State<HelpdeskScreen> {
-  final _helpdeskService = HelpdeskService(baseUrl: 'http://192.168.56.1:3000');
+  final _helpdeskService = HelpdeskService(baseUrl: baseUrl);
 
   List<HelpdeskContact> _contacts = [];
   String _domisili = '';
