@@ -110,86 +110,96 @@ Future<void> _loadRecentConversations() async {
         child: SafeArea(
           child: Column(
             children: [
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
-        color: Theme.of(context).colorScheme.primary,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _nama ?? 'Pengguna',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _email,
-              style: const TextStyle(fontSize: 14, color: Colors.white),
-            ),
-            if (_domisili != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.white),
-                  const SizedBox(width: 4),
-                  Text(
-                    _domisili!,
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Row(
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
+                color: Theme.of(context).colorScheme.primary,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Riwayat Percakapan',
+                      _nama ?? 'Pengguna',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _email,
+                      style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onPrimary),
+                    ),
+                    if (_domisili != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, size: 16, color: Theme.of(context).colorScheme.onPrimary),
+                          const SizedBox(width: 4),
+                          Text(
+                            _domisili!,
+                            style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onPrimary),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
-              if (_loadingConversations)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical:16) ,
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                  )
-              else if (_recentConversations.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    'Belum ada percakapan',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Riwayat Percakapan',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_loadingConversations)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      else if (_recentConversations.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text(
+                            'Belum ada percakapan',
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                        )
+                      else
+                        ..._recentConversations.map((convo) => ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.chat_bubble_outline, size: 20),
+                              title: Text(
+                                convo.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                context.push('/chat', extra: {'conversationId': convo.id});
+                              },
+                            )),
+                    ],
                   ),
-                )
-              else
-                ..._recentConversations.map((convo) => ListTile(
-                    dense:true,
-                    leading: const Icon(Icons.chat_bubble_outline, size: 20),
-                    title: Text(
-                      convo.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize:14)
-                    ),
-                    onTap: (){
-                      Navigator.of(context).pop(); 
-                      context.push('/chat', extra: {'conversationId': convo.id});// tutup drawer
-                    },
-                )),
-              const Spacer(),
+                ),
+              ),
+
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.red),
