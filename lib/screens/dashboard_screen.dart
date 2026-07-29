@@ -6,6 +6,7 @@ import 'package:evochat/services/profile_service.dart';
 import 'package:evochat/services/chat_service.dart';
 import 'package:evochat/config.dart';
 
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -30,6 +31,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadProfile();
     _loadRecentConversations();
   }
+String _getGreeting() {
+  final hour = DateTime.now().hour;
+
+  if (hour >= 5 && hour < 11) {
+    return 'Selamat pagi,';
+  } else if (hour >= 11 && hour < 15) {
+    return 'Selamat siang,';
+  } else if (hour >= 15 && hour < 18) {
+    return 'Selamat sore,';
+  } else {
+    return 'Selamat malam,';
+  }
+}
 
 Future<void> _loadRecentConversations() async {
   setState(() => _loadingConversations = true); 
@@ -218,7 +232,7 @@ Future<void> _loadRecentConversations() async {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Selamat datang,',
+                _getGreeting(),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: Colors.grey[600],
                     ),
@@ -296,47 +310,64 @@ class _DashboardMenuCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: theme.colorScheme.primary),
                 ),
-                child: Icon(icon, color: theme.colorScheme.primary),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
-            ],
+                Icon(Icons.chevron_right, color: Colors.grey[400]),
+              ],
+            ),
           ),
         ),
       ),
