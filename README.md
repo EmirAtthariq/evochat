@@ -1,32 +1,37 @@
-# WIP!!!---EvoChat — Mobile App
+# EvoChat — Mobile App
 
-Aplikasi mobile Flutter untuk chatbot AI. Menyediakan chat dengan asisten AI berbasis knowledge base internal, riwayat percakapan, dan helpdesk WhatsApp sesuai domisili cabang.
+Aplikasi mobile Flutter untuk chatbot AI internal. Menyediakan chat dengan asisten AI berbasis knowledge base, riwayat percakapan, dan helpdesk WhatsApp sesuai domisili cabang.
+
+
 
 ## Tech Stack
 
 - **Framework**: Flutter (Dart SDK `^3.11.4`)
 - **Platform**: Android & iOS (folder `android/` dan `ios/` sudah di-generate, termasuk konfigurasi native splash screen)
-- **Routing**: `go_router`
-- **Auth & Session**: `supabase_flutter`
-- **HTTP Client**: `http`
-- **Markdown Rendering**: `flutter_markdown`
-- **Splash Screen**: `flutter_native_splash`
+- **Routing**: `go_router ^14.0.0`
+- **Auth & Session**: `supabase_flutter ^2.0.0`
+- **HTTP Client**: `http ^1.2.0`
+- **Markdown Rendering**: `flutter_markdown ^0.7.7+1`
+- **Typing Indicator**: `simple_typing_indicator ^1.0.1` — animasi titik-titik sebelum token pertama jawaban bot datang
+- **Deep Link Eksternal**: `url_launcher ^6.3.1` — buka WhatsApp dari layar Helpdesk
+- **Splash Screen**: `flutter_native_splash ^2.4.8`
 
 ## Struktur Folder
 
-``` text
+```
 lib/
 ├── main.dart                    # Entry point, init Supabase, cek sesi awal
+├── config.dart                  # Satu-satunya sumber baseUrl backend, dipakai semua screen
 ├── app/
-│   ├── auth_state.dart          # ChangeNotifier untuk state login (belum dipakai di router/screen manapun)
+│   ├── auth_state.dart          # ChangeNotifier untuk state login — TIDAK dipakai di manapun (dead code)
 │   ├── router.dart              # Konfigurasi go_router
 ├── screens/
 │   ├── login_screen.dart        # Login page
-│   ├── dashboard_screen.dart    # Home, Menu, sidebar dengan info user & logout
-│   ├── chat_screen.dart         # Chat dengan riwayat & percakapan baru
+│   ├── dashboard_screen.dart    # Home, greeting dinamis sesuai jam, sidebar info user & logout
+│   ├── chat_screen.dart         # Chat dengan riwayat, streaming, feedback, typing indicator
 │   └── helpdesk_screen.dart     # Kontak WhatsApp sesuai domisili
 ├── services/
-│   ├── chat_service.dart        # Kirim pesan, streaming, riwayat, hapus percakapan, kirim feedback up/down
+│   ├── chat_service.dart        # Kirim pesan, streaming, riwayat, hapus percakapan, feedback up/down
 │   ├── helpdesk_service.dart    # Ambil kontak WhatsApp sesuai domisili
 │   └── profile_service.dart     # Ambil data profil user (nama, email, domisili)
 └── widgets/
@@ -37,76 +42,77 @@ lib/
 
 ### 1. Install dependency
 
-```bash
+```
 flutter pub get
 ```
 
 ### 2. Konfigurasi Supabase
 
-Kredensial Supabase memakai parameter `publishableKey` (bukan `anonKey`):
+Kredensial di `main.dart` memakai parameter `publishableKey` (bukan `anonKey`), dan sudah diisi nilai real project (bukan placeholder):
 
 ```dart
 await Supabase.initialize(
-  url: 'https://xxx.supabase.co',
-  publishableKey: 'sb_publishable_xxxxx', // publishable key, BUKAN secret key
+  url: 'https://grzphmudtrjopckhmqct.supabase.co',
+  publishableKey: 'sb_publishable__Aaq0oqkfgltmEPiAKwrow_G0oNI37y',
 );
 ```
 
-> **Perhatian**: saat ini kredensial di `main.dart` **sudah diisi nilai asli project Supabase (bukan sekadar placeholder)** dan ikut ter-commit ke repo. Ini bukan masalah kebocoran data sensitif karena publishable key memang didesain untuk dipakai di client, tapi sebaiknya tetap dipindah ke `--dart-define`/file env yang di-gitignore supaya gampang ganti project (dev/staging/prod) tanpa edit source code. Kalau mau ganti ke project Supabase lain, edit langsung 2 baris di atas.
+Publishable key memang didesain aman dipakai di client. Kalau mau ganti project Supabase, edit langsung 2 baris ini di `main.dart` — belum dipindah ke `--dart-define`/env file.
 
 ### 3. Konfigurasi base URL server
 
-Base URL server backend saat ini **di-hardcode terpisah di tiap screen** (`ChatScreen`, `DashboardScreen`, `HelpdeskScreen`), bukan di satu tempat terpusat — jadi kalau server pindah alamat, harus diganti manual di ketiga file:
+Sudah disentralisasi di `lib/config.dart`:
 
 ```dart
-// lib/screens/chat_screen.dart, dashboard_screen.dart, helpdesk_screen.dart
-final _chatService = ChatService(baseUrl: 'http://192.168.56.1:3000');
+const baseUrl = 'http://192.168.56.1:3000';
 ```
 
-> Catatan: gunakan IP jaringan lokal (bukan `localhost`) jika testing dari emulator/device fisik yang perlu mengakses server di komputer development.
+Semua service (`ChatService`, `ProfileService`, `HelpdeskService`) menerima `baseUrl` ini lewat konstruktor di masing-masing screen. Ganti satu baris ini kalau server pindah alamat. Gunakan IP jaringan lokal (bukan `localhost`) untuk testing dari emulator/device fisik.
 
 ### 4. Splash screen (opsional, jika logo berubah)
 
-```bash
+```
 dart run flutter_native_splash:create
 ```
 
 ### 5. Jalankan aplikasi
 
-```bash
+```
 flutter run
 ```
 
 ## Alur Autentikasi
 
 1. `main.dart` mengecek sesi Supabase yang tersimpan sebelum `runApp()`
-2. Jika sesi valid → langsung ke `/dashboard`, jika tidak → ke `/login`
-3. Login menggunakan `supabase.auth.signInWithPassword()`
-4. Token sesi (`accessToken`) dikirim sebagai header `Authorization: Bearer <token>` di setiap request ke API backend
+2. Sesi valid → `initialLocation = '/dashboard'`; tidak valid → `/login`
+3. Login pakai `supabase.auth.signInWithPassword()`
+4. `accessToken` dikirim sebagai header `Authorization: Bearer <token>` di setiap request ke API backend
 
 ## Fitur Utama
 
+### Dashboard
+
+- Greeting dinamis sesuai jam saat ini: "Selamat pagi/siang/sore/malam" (berdasarkan `DateTime.now().hour`)
+- Nama, email, domisili dari `/api/profile`; gagal dimuat → auto-retry sekali, lalu tombol "Coba lagi" manual
+- Sidebar: info akun, 5 percakapan terakhir (tap langsung buka di `/chat` dengan `conversationId` lewat `extra`), tombol logout
+- Menu kartu ke Chat dan Helpdesk
+
 ### Chat
 
-- Kirim pertanyaan ke chatbot, jawaban diterima secara streaming (real-time, potongan teks per potongan)
-- Riwayat percakapan tersimpan per user, bisa dibuka kembali lewat ikon riwayat (bottom sheet draggable)
-- Swipe kiri pada riwayat untuk menghapus percakapan (dengan dialog konfirmasi, optimistic update lalu rollback kalau gagal)
-- Tombol "Percakapan Baru" untuk memulai chat dari awal
-- Jawaban AI dirender sebagai markdown (bold, list, dll)
-- Pemisah tanggal antar pesan ("Hari Ini", "Kemarin", atau tanggal lengkap), mirip WhatsApp
-- **Feedback jawaban (👍/👎)**: tiap jawaban bot (bukan pesan sapaan awal) punya tombol thumbs up/down yang mengirim ke `/api/messages/[id]/feedback`. Tap ulang tombol yang sama untuk membatalkan feedback (toggle ke `null`). Update dilakukan optimistic di UI dan otomatis rollback + tampilkan snackbar kalau request gagal.
-- Setelah jawaban bot selesai di-stream, app langsung fetch ulang isi percakapan supaya dapat `id` pesan asli dari server (dibutuhkan supaya tombol feedback bisa aktif)
+- Kirim pertanyaan, jawaban diterima streaming (real-time per potongan teks)
+- Typing indicator (titik-titik animasi) tampil sebelum token pertama datang, hilang otomatis saat `onFirstToken` terpanggil
+- Riwayat percakapan per user, dibuka lewat bottom sheet draggable
+- Swipe kiri pada riwayat untuk menghapus (dialog konfirmasi, optimistic update, rollback kalau gagal)
+- Tombol "Percakapan Baru"
+- Jawaban AI dirender markdown
+- Pemisah tanggal antar pesan ("Hari Ini", "Kemarin", atau tanggal lengkap)
+- **Feedback (👍/👎)**: tiap jawaban bot (kecuali sapaan awal) kirim ke `/api/messages/[id]/feedback`. Tap ulang tombol yang sama = toggle ke `null`. Optimistic update + auto-rollback dan snackbar kalau gagal.
+- Setelah stream selesai, app fetch ulang isi percakapan untuk dapat `id` pesan asli dari server — tombol feedback baru aktif setelah itu.
 
 ### Helpdesk
 
-- Menampilkan daftar kontak WhatsApp sesuai domisili cabang user (di-assign manual di database, tabel `profiles`)
-- Tap kontak langsung membuka WhatsApp dengan nomor terkait
-
-### Dashboard
-
-- Menampilkan nama, email, dan domisili user (dari `/api/profile`); kalau gagal dimuat, otomatis retry sekali lalu tampilkan tombol "Coba lagi" manual
-- Sidebar (drawer) berisi info akun (nama, email, domisili), **5 percakapan terakhir** (tap langsung membuka percakapan itu di `/chat`), dan tombol logout
-- Menu kartu ke Chat dan Helpdesk
+- Daftar kontak WhatsApp sesuai domisili cabang user (di-assign manual di tabel `profiles`)
+- Tap kontak buka WhatsApp lewat `url_launcher` (`LaunchMode.externalApplication`)
 
 ## Model Data Penting
 
@@ -121,21 +127,17 @@ class ChatMessage {
 }
 ```
 
-> Penting: pesan sapaan pembuka ("Halo! Saya asisten EvoChat...") sengaja tidak ikut dikirim sebagai bagian dari history ke `/api/chat`, karena dapat memengaruhi konsistensi jawaban model AI.
->
-> `id` pada pesan assistant baru terisi setelah stream selesai dan app fetch ulang `/api/conversations/[id]/messages` — sebelum itu tombol feedback belum bisa ditekan (disembunyikan sampai `id != null`).
+Pesan sapaan pembuka tidak dikirim ke `/api/chat` supaya tidak memengaruhi konsistensi jawaban model.
 
-## Troubleshooting Umum
+`ChatService.sendMessage` membedakan `onFirstToken` (matikan typing indicator, mulai bubble baru) dari `onToken` (append token berikutnya ke bubble yang sama) — dan `onDone` yang di-`await` supaya urutan penyimpanan `conversationId` konsisten untuk percakapan baru.
+
+## Troubleshooting
 
 | Gejala | Kemungkinan Penyebab |
-| --- | --- |
+|---|---|
 | Error 401 saat chat | Sesi login expired atau token tidak terkirim |
 | AI menjawab "tidak ada informasi" padahal ada di dokumen | Riwayat percakapan lama tercemar jawaban gagal sebelumnya — mulai percakapan baru |
-| Tidak bisa konek ke server | Periksa `baseUrl`, pastikan device/emulator satu jaringan dengan server |
-| Nama tidak muncul di dashboard | `/api/profile` gagal dipanggil; app sudah retry otomatis 1x, kalau masih gagal tap "Coba lagi" atau cek log `flutter run` |
-| Tombol feedback (👍/👎) tidak muncul | Wajar untuk pesan yang baru selesai stream sebelum fetch ulang selesai, atau untuk pesan sapaan awal (`isWelcomeMessage`) yang memang tidak punya `id` |
-| Tap feedback tidak tersimpan / balik sendiri | Request ke `/api/messages/[id]/feedback` gagal (401/500) — UI otomatis rollback dan tampilkan snackbar error |
-
-## Belum Diimplementasikan
-
-- Refresh token / auto re-login setelah token expired dalam waktu lama
+| Tidak bisa konek ke server | Cek `baseUrl` di `config.dart`, pastikan device/emulator satu jaringan dengan server |
+| Nama tidak muncul di dashboard | `/api/profile` gagal; sudah retry otomatis 1x, kalau masih gagal tap "Coba lagi" atau cek log `flutter run` |
+| Tombol feedback tidak muncul | Wajar untuk pesan baru selesai stream sebelum fetch ulang, atau pesan sapaan awal (tidak punya `id`) |
+| Tap feedback tidak tersimpan / balik sendiri | Request ke `/api/messages/[id]/feedback` gagal (401/500) — UI rollback + snackbar error |
