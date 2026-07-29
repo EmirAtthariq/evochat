@@ -2,8 +2,6 @@
 
 Aplikasi mobile Flutter untuk chatbot AI internal. Menyediakan chat dengan asisten AI berbasis knowledge base, riwayat percakapan, dan helpdesk WhatsApp sesuai domisili cabang.
 
-
-
 ## Tech Stack
 
 - **Framework**: Flutter (Dart SDK `^3.11.4`)
@@ -21,9 +19,9 @@ Aplikasi mobile Flutter untuk chatbot AI internal. Menyediakan chat dengan asist
 ```
 lib/
 ├── main.dart                    # Entry point, init Supabase, cek sesi awal
-├── config.dart                  # Satu-satunya sumber baseUrl backend, dipakai semua screen
+├── env_config.dart              # TIDAK ikut ter-commit (gitignored) — isi baseUrl, Supabase URL & publishable key
+├── env_config.dart.example      # Template untuk env_config.dart, ini yang ter-commit
 ├── app/
-│   ├── auth_state.dart          # ChangeNotifier untuk state login — TIDAK dipakai di manapun (dead code)
 │   ├── router.dart              # Konfigurasi go_router
 ├── screens/
 │   ├── login_screen.dart        # Login page
@@ -46,36 +44,33 @@ lib/
 flutter pub get
 ```
 
-### 2. Konfigurasi Supabase
+### 2. Konfigurasi environment (Supabase & base URL)
 
-Kredensial di `main.dart` memakai parameter `publishableKey` (bukan `anonKey`), dan sudah diisi nilai real project (bukan placeholder):
+Kredensial dan `baseUrl` sudah disentralisasi di `lib/env_config.dart`, yang **tidak ikut ter-commit** (masuk `.gitignore`). Copy dari template lalu isi nilai asli:
 
-```dart
-await Supabase.initialize(
-  url: 'https://grzphmudtrjopckhmqct.supabase.co',
-  publishableKey: 'sb_publishable__Aaq0oqkfgltmEPiAKwrow_G0oNI37y',
-);
+```bash
+cp lib/env_config.dart.example lib/env_config.dart
 ```
 
-Publishable key memang didesain aman dipakai di client. Kalau mau ganti project Supabase, edit langsung 2 baris ini di `main.dart` — belum dipindah ke `--dart-define`/env file.
-
-### 3. Konfigurasi base URL server
-
-Sudah disentralisasi di `lib/config.dart`:
+Isi `lib/env_config.dart`:
 
 ```dart
-const baseUrl = 'http://192.168.56.1:3000';
+class EnvConfig {
+  static const String supabaseUrl = 'https://xxx.supabase.co';
+  static const String baseUrl = 'http://192.168.56.1:3000';
+  static const String supabasePublishableKey = 'sb_publishable_xxxxx'; // publishable key, BUKAN secret key
+}
 ```
 
-Semua service (`ChatService`, `ProfileService`, `HelpdeskService`) menerima `baseUrl` ini lewat konstruktor di masing-masing screen. Ganti satu baris ini kalau server pindah alamat. Gunakan IP jaringan lokal (bukan `localhost`) untuk testing dari emulator/device fisik.
+`main.dart` dan ketiga screen (`chat_screen.dart`, `dashboard_screen.dart`, `helpdesk_screen.dart`) sama-sama import `EnvConfig` dan pakai `EnvConfig.baseUrl` / `EnvConfig.supabaseUrl` / `EnvConfig.supabasePublishableKey` — jadi ganti satu file ini cukup untuk switch environment (dev/staging/prod) tanpa edit source code lain. Gunakan IP jaringan lokal (bukan `localhost`) untuk `baseUrl` kalau testing dari emulator/device fisik.
 
-### 4. Splash screen (opsional, jika logo berubah)
+### 3. Splash screen (opsional, jika logo berubah)
 
 ```
 dart run flutter_native_splash:create
 ```
 
-### 5. Jalankan aplikasi
+### 4. Jalankan aplikasi
 
 ```
 flutter run
@@ -137,7 +132,17 @@ Pesan sapaan pembuka tidak dikirim ke `/api/chat` supaya tidak memengaruhi konsi
 |---|---|
 | Error 401 saat chat | Sesi login expired atau token tidak terkirim |
 | AI menjawab "tidak ada informasi" padahal ada di dokumen | Riwayat percakapan lama tercemar jawaban gagal sebelumnya — mulai percakapan baru |
-| Tidak bisa konek ke server | Cek `baseUrl` di `config.dart`, pastikan device/emulator satu jaringan dengan server |
+| Tidak bisa konek ke server | Cek `baseUrl` di `env_config.dart`, pastikan device/emulator satu jaringan dengan server |
 | Nama tidak muncul di dashboard | `/api/profile` gagal; sudah retry otomatis 1x, kalau masih gagal tap "Coba lagi" atau cek log `flutter run` |
 | Tombol feedback tidak muncul | Wajar untuk pesan baru selesai stream sebelum fetch ulang, atau pesan sapaan awal (tidak punya `id`) |
 | Tap feedback tidak tersimpan / balik sendiri | Request ke `/api/messages/[id]/feedback` gagal (401/500) — UI rollback + snackbar error |
+
+## Known Issues
+
+- Belum ada refresh token / auto re-login setelah token expired dalam waktu lama
+- Belum ada test suite atau CI
+
+## Roadmap
+
+- [ ] Refresh token / auto re-login
+- [ ] Unit/widget test dasar untuk `chat_service.dart` dan alur feedback
