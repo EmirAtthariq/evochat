@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:evochat/app/router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:evochat/env_config.dart';
 
+final url = EnvConfig.supabaseUrl;
+final base = EnvConfig.baseUrl;
+final key = EnvConfig.supabasePublishableKey;
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await Supabase.initialize(
-    url: 'https://grzphmudtrjopckhmqct.supabase.co',
-    publishableKey: 'sb_publishable__Aaq0oqkfgltmEPiAKwrow_G0oNI37y',
+    url: url,
+    publishableKey: key,
   );
   final session = Supabase.instance.client.auth.currentSession;
   final initialLocation = session != null ? '/dashboard' : '/login';

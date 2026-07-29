@@ -4,8 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:evochat/widgets/app_bar.dart';
 import 'package:evochat/services/profile_service.dart';
 import 'package:evochat/services/chat_service.dart';
-import 'package:evochat/config.dart';
+import 'package:evochat/env_config.dart';
 
+final base = EnvConfig.baseUrl;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,8 +16,8 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-    final _chatService = ChatService(baseUrl: baseUrl); 
-  final _profileService = ProfileService(baseUrl: baseUrl);
+    final _chatService = ChatService(baseUrl: base); 
+  final _profileService = ProfileService(baseUrl: base);
   String? _nama;
   String _email = '';
   String? _domisili; 
